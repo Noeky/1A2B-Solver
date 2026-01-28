@@ -1,1 +1,1 @@
-A 1A2B game solver.
+1A2B game solver.
