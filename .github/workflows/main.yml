@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          path: app_solver
 
       # 1. 设置 Java (Android 构建工具必须)
       - name: Setup Java
@@ -36,12 +38,13 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install flet
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f app_solver/requirements.txt ]; then pip install -r app_solver/requirements.txt; fi
 
       # 5. 构建 APK
       # 注意：此命令默认寻找当前目录下的 main.py
       - name: Build APK
         run: |
+          cd app_solver
           flet build apk
 
       # 6. 上传构建产物
@@ -49,4 +52,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: build/apk/app-release.apk
+          path: app_solver/build/apk/app-release.apk
