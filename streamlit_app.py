@@ -148,19 +148,20 @@ st.markdown("""
 请在游戏中尝试推荐的数字，并在此处输入反馈结果。
 """)
 
-# --- 侧边栏配置 ---
-with st.sidebar:
-    st.header("⚙️ 游戏设置")
+# --- 游戏设置 ---
+col_s1, col_s2 = st.columns(2)
+with col_s1:
     allow_repeat = st.checkbox("允许数字重复?", value=True, key="allow_repeat_checkbox")
-    
-    # 如果设置改变，重置游戏
-    if "allow_repeat" not in st.session_state:
-        st.session_state.allow_repeat = allow_repeat
-        reset_game()
-    elif st.session_state.allow_repeat != allow_repeat:
-        st.session_state.allow_repeat = allow_repeat
-        reset_game()
-    
+
+# 如果设置改变，重置游戏
+if "allow_repeat" not in st.session_state:
+    st.session_state.allow_repeat = allow_repeat
+    reset_game()
+elif st.session_state.allow_repeat != allow_repeat:
+    st.session_state.allow_repeat = allow_repeat
+    reset_game()
+
+with col_s2:
     if st.button("🔄 重新开始游戏"):
         reset_game()
 
