@@ -36,7 +36,7 @@ st.markdown("""
 # --- 侧边栏配置 ---
 with st.sidebar:
     st.header("⚙️ 游戏设置")
-    allow_repeat = st.checkbox("允许数字重复?", value=False, key="allow_repeat_checkbox")
+    allow_repeat = st.checkbox("允许数字重复?", value=True, key="allow_repeat_checkbox")
     
     # 如果设置改变，重置游戏
     if "allow_repeat" not in st.session_state:
