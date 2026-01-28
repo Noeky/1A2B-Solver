@@ -2,14 +2,129 @@ import streamlit as st
 import pandas as pd
 import sys
 import os
+import itertools
+import time
 
 # 将当前脚本所在的目录添加到 sys.path，解决在 Streamlit Cloud 子目录部署时的路径问题
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
-from solver import generate_candidates, get_best_guess
-from compare import compare_numbers
+# --- 核心逻辑函数  ---
+
+def compare_numbers(basic, input_val):
+    """
+    比较两个四位数字，返回A和B。
+    
+    参数:
+    basic: 目标数字 (可以是字符串或整数)
+    input_val: 猜测数字 (可以是字符串或整数)
+    
+    返回:
+    (count_a, count_b): 
+        count_a: 数字和位置都对的个数
+        count_b: 数字出现但位置不对的个数
+    """
+    # 确保输入是字符串
+    str_basic = str(basic)
+    str_input = str(input_val)
+
+    # 简单的验证
+    if len(str_basic) != 4 or len(str_input) != 4:
+         raise ValueError("输入必须是四位数字")
+
+    count_a = 0
+    
+    # 用于统计字符频率的字典
+    basic_counts = {}
+    input_counts = {}
+    
+    for i in range(4):
+        # 统计 A: 位置和字符都相同
+        if str_basic[i] == str_input[i]:
+            count_a += 1
+        
+        # 统计 Basic 中的字符出现次数
+        char_b = str_basic[i]
+        basic_counts[char_b] = basic_counts.get(char_b, 0) + 1
+        
+        # 统计 Input 中的字符出现次数
+        char_i = str_input[i]
+        input_counts[char_i] = input_counts.get(char_i, 0) + 1
+
+    # 计算总共匹配的字符数（包含位置对和位置不对）
+    total_matches = 0
+    for char in basic_counts:
+        if char in input_counts:
+            total_matches += min(basic_counts[char], input_counts[char])
+            
+    # B 的数量 = 总匹配数 - 完全匹配数(A)
+    count_b = total_matches - count_a
+    
+    return count_a, count_b
+
+def generate_candidates(allow_repeat=False):
+    """
+    生成所有可能的四位数字候选列表。
+    """
+    if allow_repeat:
+        return [f"{i:04d}" for i in range(10000)]
+    else:
+        # 使用 itertools.permutations 生成无重复数字
+        perms = itertools.permutations('0123456789', 4)
+        return ["".join(p) for p in perms]
+
+def get_feedback_groups(candidates, guess):
+    """
+    计算如果猜 guess，候选集会被分成哪些 (A, B) 组，每组有多少个。
+    返回: 字典 {(A, B): count}
+    """
+    groups = {}
+    for scalar in candidates:
+        # scalar 是潜在的答案
+        # compare_numbers(basic, input) -> basic是答案, input是猜测
+        res = compare_numbers(scalar, guess)
+        if res not in groups:
+            groups[res] = 0
+        groups[res] += 1
+    return groups
+
+def get_best_guess(candidates, all_possible_guesses):
+    """
+    使用 Minimax 策略寻找最优解。
+    """
+    # 如果候选集很小，直接猜第一个
+    # if len(candidates) <= 2:
+    #     return candidates[0]
+        
+    start_time = time.time()
+    
+    best_guess = None
+    min_worst_case = float('inf')
+    
+    
+    search_space = candidates 
+    
+    if len(candidates) > 4900: 
+        return "0123"
+
+    for guess in search_space:
+        groups = get_feedback_groups(candidates, guess)
+        
+        # 这种猜测下的最坏情况（剩下的候选集最大是多少）
+        worst_case = max(groups.values())
+        
+        if worst_case < min_worst_case:
+            min_worst_case = worst_case
+            best_guess = guess
+            
+        # 如果找到一个能保证下次只剩1个或0个的（这不太可能，但在小集合里可能），直接返回
+        if min_worst_case == 1:
+            return best_guess
+
+    return best_guess
+
+
 
 # set_page_config 必须是第一个 Streamlit 命令
 st.set_page_config(page_title="1A2B 求解器", page_icon="🧩")
@@ -29,8 +144,8 @@ def reset_game():
 
 st.title("🧩 1A2B (Bulls and Cows) 求解器")
 st.markdown("""
-这是一个辅助你玩 1A2B 猜数字游戏的 AI助手。
-你自己在这个网页之外的地方（比如手机APP、纸上）玩游戏，然后在这里输入 AI 推荐猜测的结果。
+这是一个辅助 1A2B 猜数字游戏的求解工具。
+请在游戏中尝试推荐的数字，并在此处输入反馈结果。
 """)
 
 # --- 侧边栏配置 ---
@@ -73,7 +188,7 @@ else:
     with col2:
         st.metric("剩余可能答案", len(st.session_state.candidates))
 
-    # 获取AI推荐
+    # 获取推荐猜测
     # 如果是第一步，且是标准模式，直接给出经典开局
     if st.session_state.turn == 1 and not st.session_state.allow_repeat:
         recommended_guess = "0123"
@@ -81,7 +196,7 @@ else:
         recommended_guess = "0123" # 也是个不错的开始
     else:
         # 只有当候选集不是特别大时，或者需要计算时才显示 spinner
-        with st.spinner('🤔 AI 正在思考最佳策略...'):
+        with st.spinner('🤔 正在计算最佳策略...'):
              if len(st.session_state.candidates) == 1:
                  recommended_guess = st.session_state.candidates[0]
              else:
@@ -89,7 +204,7 @@ else:
     
     st.session_state.last_guess = recommended_guess
 
-    st.info(f"AI 推荐猜测: **{recommended_guess}**")
+    st.info(f"推荐猜测: **{recommended_guess}**")
 
     # 用户输入反馈
     st.write("请输入你在游戏中猜测该数字后得到的结果:")
