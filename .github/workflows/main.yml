@@ -42,7 +42,7 @@ jobs:
       # 注意：此命令默认寻找当前目录下的 main.py
       - name: Build APK
         run: |
-          flet build apk
+          flet build apk --project-name solver_1a2b
 
       # 6. 上传构建产物
       - name: Upload APK
